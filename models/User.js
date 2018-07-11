@@ -1,6 +1,25 @@
 const db = require('../db');
 const encrypt = require('js-sha256');
-const helpers = require('../helpers');
+const helpers = require('../helpers'); // We use helpers.dbCallback here to handle all the errors, so that our model functions can focus on the database querying
+
+// =====================================================================
+// Query Strings - writing them all up here so that we don't have to keep
+// declaring them inside the functions
+// =====================================================================
+const SELECT_ALL_USERS = 'SELECT * FROM USERS';
+const CREATE_USER = 'INSERT INTO users (name, email, password) VALUES($1, $2, $3) RETURNING id';
+const AUTHENTICATE_USER = 'SELECT id FROM users WHERE email = $1 AND password = $2';
+const FIND_ALL_TASKS = 'SELECT users.name AS username, tasks.name AS taskname, users.id AS userid, tasks.id AS taskid FROM tasks INNER JOIN users_tasks ON tasks.id = users_tasks.task_id INNER JOIN users ON users_tasks.user_id = users.id WHERE users.id = $1';
+const FIND_TASK = 'SELECT users.name AS username, tasks.name AS taskname, tasks.description FROM tasks INNER JOIN users_tasks ON tasks.id = users_tasks.task_id INNER JOIN users ON users_tasks.user_id = users.id WHERE users.id = $1 AND tasks.id = $2';
+const CREATE_TASK = 'INSERT INTO tasks (name, description) VALUES ($1, $2) RETURNING id';
+const CREATE_USER_TASK = 'INSERT INTO users_tasks (user_id, task_id) VALUES ($1, $2) RETURNING id';
+// =====================================================================
+
+
+function create(user, controllerCallback) {
+    let values = [ user['name'], user['email'], encrypt(user['password']) ];
+    db.query(CREATE_USER, values, helpers.dbCallback(controllerCallback));
+};
 
 /**
  * Either finds a specific user if an id is supplied, or finds all users
@@ -8,7 +27,6 @@ const helpers = require('../helpers');
  * @param {function} callback 
  */
 function find(id, controllerCallback) {
-    let queryString = 'SELECT * FROM USERS';
     let values = [];
     let callback = controllerCallback;
     if (typeof id === 'function') {
@@ -17,7 +35,7 @@ function find(id, controllerCallback) {
         queryString += ' WHERE id = $1';
         values = [id];
     };
-    db.query(queryString, values, helpers.dbCallback(callback));
+    db.query(SELECT_ALL_USERS, values, helpers.dbCallback(callback));
 };
 
 function findBy(criteria, callback) {
@@ -34,45 +52,32 @@ function findBy(criteria, callback) {
     db.query(queryString, values, helpers.dbCallback(callback));
 }
 
-function create(user, controllerCallback) {
-    let queryString = 'INSERT INTO users (name, email, password) VALUES($1, $2, $3) RETURNING id';
-    let values = [ user['name'], user['email'], encrypt(user['password']) ];
-    db.query(queryString, values, helpers.dbCallback(controllerCallback));
+function authenticate(user, controllerCallback) {
+    let values = [ user.email, encrypt(user['password']) ];
+    db.query(AUTHENTICATE_USER, values, helpers.dbCallback(callback));
 };
 
-function authenticate(user, controllerCallback) {
-    let queryString = 'SELECT id FROM users WHERE email = $1 AND password = $2';
-    let values = [ user.email, encrypt(user['password']) ];
-    db.query(queryString, values, helpers.dbCallback(callback));
+function createTask(userId, task, controllerCallback) {
+    let taskValues = [ task['name'], task['description'] ];
+
+    function taskCreationCallback(result) {
+        let taskId = result.rows[0];
+        let userValues = [userId, taskId];
+        db.query(CREATE_USER_TASK, userValues, helpers.dbCallback(controllerCallback));
+    }
+
+    db.query(CREATE_TASK, taskValues, helpers.dbCallback(taskCreationCallback));
 };
 
 function findAllTasks(userId, controllerCallback) {
-    let queryString = 'SELECT users.name AS username, tasks.name AS taskname, users.id AS userid, tasks.id AS taskid FROM tasks INNER JOIN users_tasks ON tasks.id = users_tasks.task_id INNER JOIN users ON users_tasks.user_id = users.id WHERE users.id = $1';
     let values = [userId];
-    db.query(queryString, values, helpers.dbCallback(controllerCallback));
+    db.query(FIND_ALL_TASKS, values, helpers.dbCallback(controllerCallback));
 };
 
 function findTask(userId, taskId, controllerCallback) {
-    let queryString = 'SELECT users.name AS username, tasks.name AS taskname, tasks.description FROM tasks INNER JOIN users_tasks ON tasks.id = users_tasks.task_id INNER JOIN users ON users_tasks.user_id = users.id WHERE users.id = $1 AND tasks.id = $2';
     let values = [userId, taskId];
-    db.query(queryString, values, helpers.dbCallback(controllerCallback));
+    db.query(FIND_TASK, values, helpers.dbCallback(controllerCallback));
 }
-
-function createTask(userId, task, controllerCallback) {
-    let taskQueryString = 'INSERT INTO tasks (name, description) VALUES ($1, $2) RETURNING id';
-    let taskValues = [ task['name'], task['description'] ];
-    db.query(taskQueryString, taskValues, function(error, result) {
-        if (error) {
-            throw new Error(error);
-        } else {
-            let taskId = result.rows[0];
-            let userQueryString = 'INSERT INTO users_tasks (user_id, task_id) VALUES ($1, $2) RETURNING id';
-            let userValues = [userId, taskId];
-            db.query(userQueryString, userValues, helpers.dbCallback(controllerCallback));
-        };
-    });
-};
-
 
 module.exports = {
     find,

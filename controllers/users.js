@@ -1,9 +1,8 @@
 const User = require('../models/User');
 
-function logout(req, res) {
-    res.clearCookie('login');
-    res.redirect('/');
-}
+function register(req, res) {
+    res.render('users/Registration');
+};
 
 function create(req, res) {
 
@@ -43,11 +42,7 @@ function authenticate(req, res) {
     }
 
     User.authenticate(user, controllerCallback);
-}
-
-function register(req, res) {
-    res.render('users/Registration');
-}
+};
 
 function showAll(req, res) {
     res.send('Hey this works!');
@@ -59,6 +54,27 @@ function showHome(req, res) {
         res.render('users/Home', {name: result.rows[0]['name'], id})
     };
     User.find(id, controllerCallback);
+};
+
+function logout(req, res) {
+    res.clearCookie('login');
+    res.redirect('/');
+};
+
+function showCreateTaskForm(req, res) {
+    res.render('tasks/TaskCreationPage', {userId: req.cookies['login']});
+};
+
+function createTask(req, res) {
+    const { name, description, userId } = req.body;
+    const task = {
+        name: name,
+        description: description
+    };
+    const controllerCallback = function(res) {
+        res.redirect('/users/' + userId);
+    }
+    User.createTask(userId, task, controllerCallback);
 };
 
 function showTask(req, res) {
@@ -87,23 +103,6 @@ function showAllTasks(req, res) {
     }
     User.findAllTasks(id, controllerCallback);
 };
-
-function createTask(req, res) {
-    const { name, description, userId } = req.body;
-    const task = {
-        name: name,
-        description: description
-    };
-    const controllerCallback = function(res) {
-        res.redirect('/users/' + userId);
-    }
-    User.createTask(userId, task, controllerCallback);
-};
-
-function showCreateTaskForm(req, res) {
-    res.render('tasks/TaskCreationPage', {userId: req.cookies['login']});
-};
-
 
 module.exports = {
     showAll,
