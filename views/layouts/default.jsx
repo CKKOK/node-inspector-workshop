@@ -6,6 +6,7 @@ class DefaultLayout extends React.Component {
             <html>
                 <head>
                     <title>Taskar</title>
+                    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" />
                 </head>
                 <body>{this.props.children}</body>
             </html>
