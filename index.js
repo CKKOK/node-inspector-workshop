@@ -18,7 +18,7 @@ const tasksRouter = require('./routes/tasks');
 
 // Check for login status
 const loginCheck = function(req, res, next) {
-    if (req.cookies['login'] || req.method !== 'GET' || req.originalUrl === '/users/new') {
+    if (req.cookies['login'] || req.method !== 'GET' || req.originalUrl === 'users/new') {
         next();
     } else {
         res.redirect('/');
